@@ -635,3 +635,75 @@
     (ok true)
   )
 )
+
+;; Join a subnet
+(define-public (join-subnet
+  (subnet-id (string-ascii 32))
+)
+  (let (
+    (node tx-sender)
+    (node-info (unwrap! (map-get? IndexingNodes { node-address: node }) ERR_INVALID_NODE))
+    (subnet (unwrap! (map-get? Subnets { subnet-id: subnet-id }) ERR_INVALID_QUERY))
+  )
+    ;; Verify node is active
+    (asserts! (get active node-info) ERR_UNAUTHORIZED)
+    
+    ;; Verify node meets stake requirement
+    (asserts! (>= (get total-stake node-info) (get min-stake-requirement subnet)) ERR_INSUFFICIENT_STAKE)
+    
+    ;; Add node to subnet
+    (map-set SubnetMembership
+      {
+        subnet-id: subnet-id,
+        node: node
+      }
+      {
+        join-block: stacks-block-height,
+        stake-committed: (get total-stake node-info)
+      }
+    )
+    
+    ;; Update subnet node count
+    (map-set Subnets
+      { subnet-id: subnet-id }
+      (merge subnet { node-count: (+ (get node-count subnet) u1) })
+    )
+    
+    (ok true)
+  )
+)
+
+;; Get delegation info
+(define-read-only (get-delegation-info (delegator principal) (node principal))
+  (map-get? StakeDelegations { delegator: delegator, node: node })
+)
+
+;; Get node delegation stats
+(define-read-only (get-node-delegation-stats (node principal))
+  (map-get? NodeDelegationInfo { node-address: node })
+)
+
+;; Get proposal details
+(define-read-only (get-proposal (proposal-id uint))
+  (map-get? Proposals { proposal-id: proposal-id })
+)
+
+;; Get data feed details
+(define-read-only (get-data-feed (feed-id (string-ascii 32)))
+  (map-get? DataFeeds { feed-id: feed-id })
+)
+
+;; Get subnet details
+(define-read-only (get-subnet (subnet-id (string-ascii 32)))
+  (map-get? Subnets { subnet-id: subnet-id })
+)
+
+;; Check if node is member of subnet
+(define-read-only (is-subnet-member (subnet-id (string-ascii 32)) (node principal))
+  (is-some (map-get? SubnetMembership { subnet-id: subnet-id, node: node }))
+)
+
+;; Get reward period details
+(define-read-only (get-reward-period (period-id uint))
+  (map-get? RewardPeriods { period-id: period-id })
+)
